@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Resume Classifier & Job Matching Assistant</title>
+  <meta name="description" content="AI-powered Resume Classification and Job Matching Assistant providing structured, objective, and explainable 10-step candidate evaluation.">
+  <link rel="stylesheet" href="styles.css">
+  <!-- PDF.js CDN for client-side PDF extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand-wrapper">
+        <div class="brand-logo">⚡</div>
+        <div>
+          <div style="display: flex; align-items: center;">
+            <h1 class="brand-title">AI Resume Classifier</h1>
+            <span class="brand-badge">Master Prompt v1.0</span>
+          </div>
+          <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+            Objective, Explainable 10-Step Resume & Job Matching Engine
+          </p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btnSettingsModal" class="btn-glass" title="Configure AI API Keys">
+          <span>⚙️</span> Engine Settings
+        </button>
+        <button id="btnResetAll" class="btn-glass" title="Clear inputs and reset">
+          <span>🔄</span> Clear All
+        </button>
+      </div>
+    </header>
+
+    <!-- Preloaded Test Cases Bar -->
+    <div class="sample-bar">
+      <div class="sample-bar-label">
+        <span>⚡</span> <span>Quick Test Samples:</span>
+      </div>
+      <div class="sample-pills">
+        <button class="sample-btn" id="btnSampleHigh" title="Load High Match test profile">
+          🟢 High Match (Full-Stack / Cloud)
+        </button>
+        <button class="sample-btn" id="btnSampleModerate" title="Load Moderate Match test profile">
+          🟡 Moderate Match (Backend to ML)
+        </button>
+        <button class="sample-btn" id="btnSampleLow" title="Load Low Match test profile">
+          🔴 Low Match (Marketing to Lead Frontend)
+        </button>
+      </div>
+    </div>
+
+    <!-- Dual Input Grid: Resume & Job Description -->
+    <div class="input-grid">
+      
+      <!-- Left Column: Candidate Resume -->
+      <section class="card" id="resumeCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">📄</span> 1. Candidate Resume
+          </h2>
+          <span style="font-size: 11px; color: var(--text-tertiary);">PDF or Raw Text</span>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div class="dropzone" id="resumeDropzone">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-text">Click or drag & drop Resume file here</div>
+          <div class="dropzone-subtext">Supports PDF, TXT, DOCX files</div>
+          <input type="file" id="resumeFileInput" class="file-input" accept=".pdf,.txt,.doc,.docx">
+        </div>
+
+        <!-- Loaded file indicator badge -->
+        <div class="loaded-file-badge" id="loadedFileBadge">
+          <span id="loadedFileName">filename.pdf</span>
+          <span style="cursor:pointer;" id="btnClearLoadedFile" title="Remove file">✕</span>
+        </div>
+
+        <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+          <label class="form-label" for="resumeText">Resume Content</label>
+          <textarea id="resumeText" class="textarea-field" placeholder="Paste full resume text here or drag & drop a PDF resume file above..." style="flex: 1; min-height: 250px;"></textarea>
+        </div>
+      </section>
+
+      <!-- Right Column: Job Description & Optional Filters -->
+      <section class="card" id="jobCard">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-title-icon">🎯</span> 2. Job Description & Criteria
+          </h2>
+          <span style="font-size: 11px; color: var(--text-tertiary);">Target Role & Requirements</span>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="targetRoleInput">Target Role / Category (Optional)</label>
+            <input type="text" id="targetRoleInput" class="input-field" placeholder="e.g. Senior Full-Stack Cloud Engineer">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="targetExpInput">Required Experience Level (Optional)</label>
+            <select id="targetExpInput" class="select-field">
+              <option value="">Auto-detect from Job Description</option>
+              <option value="Entry Level (0-2 years)">Entry Level (0-2 years)</option>
+              <option value="Mid Level (3-5 years)">Mid Level (3-5 years)</option>
+              <option value="Senior Level (5-8 years)">Senior Level (5-8 years)</option>
+              <option value="Lead / Staff (8+ years)">Lead / Staff (8+ years)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+          <label class="form-label" for="jobText">Job Description Text</label>
+          <textarea id="jobText" class="textarea-field" placeholder="Paste full target job description text here including required skills, preferred qualifications, and responsibilities..." style="flex: 1; min-height: 250px;"></textarea>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Analyze Execution Banner -->
+    <div class="action-banner">
+      <div class="action-info">
+        <div class="action-title">Execute AI Classification Engine</div>
+        <div class="action-desc">Analyzes 10 dimensions: skill matching, 7-category weighted score (0–100), ATS audit, and actionable gap analysis.</div>
+      </div>
+      <button id="btnRunClassifier" class="btn-primary">
+        <span>⚡</span> Analyze & Classify Resume
+      </button>
+    </div>
+
+    <!-- RESULTS DASHBOARD (10 Steps Output) -->
+    <main class="results-dashboard" id="resultsDashboard">
+      
+      <!-- Dashboard Top Header with Exports -->
+      <div class="dashboard-header">
+        <h2 class="dashboard-title">Classification Results & Analysis</h2>
+        <div class="export-group">
+          <button id="btnCopyMarkdown" class="btn-glass" title="Copy exact Master Prompt formatted markdown">
+            📋 Copy Markdown Report
+          </button>
+          <button id="btnDownloadJson" class="btn-glass" title="Download raw analysis data in JSON format">
+            💾 Download JSON
+          </button>
+          <button id="btnPrintReport" class="btn-glass" title="Print or export to PDF">
+            🖨️ Print / PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 1: Hero Candidate Summary Card -->
+      <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+        <h3 style="font-size: 18px; font-weight: 700; color: #fff;">1. Candidate Summary</h3>
+        <span style="font-size: 12px; color: var(--text-tertiary);">Overall Evaluation & Match Score</span>
+      </div>
+      <section class="hero-card" id="step1Summary">
+        <div class="gauge-container">
+          <svg class="gauge-svg" viewBox="0 0 160 160">
+            <circle class="gauge-bg" cx="80" cy="80" r="70"></circle>
+            <circle id="gaugeProgressCircle" class="gauge-progress" cx="80" cy="80" r="70"></circle>
+          </svg>
+          <div class="gauge-inner-text">
+            <span id="scoreNumberDisplay" class="gauge-number">--</span>
+            <span class="gauge-max">/ 100</span>
+          </div>
+          <div class="gauge-caption">Overall Match Score</div>
+        </div>
+
+        <div class="candidate-details">
+          <div class="candidate-name-row">
+            <h3 id="candidateNameDisplay" class="candidate-name">Candidate Name</h3>
+            <span id="classificationBadge" class="classification-badge badge-high">HIGH MATCH</span>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-box">
+              <div class="meta-label">Target Role</div>
+              <div id="targetRoleDisplay" class="meta-value">Role</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Verified Experience</div>
+              <div id="experienceDisplay" class="meta-value">-- Years</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Education</div>
+              <div id="educationDisplay" class="meta-value">Degree</div>
+            </div>
+          </div>
+
+          <!-- Alert banner if essential requirement is missing -->
+          <div id="criticalAlertBanner" class="critical-alert" style="display: none;">
+            <span>⚠️</span>
+            <span id="criticalAlertText">Essential mandatory requirement missing.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 2: Match Overview Breakdown (7 Categories) -->
+      <section style="margin-bottom: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px;">
+          <h3 style="font-size: 18px; font-weight: 700;">2. Match Overview (Weighted Category Scoring)</h3>
+          <span style="font-size: 12px; color: var(--text-tertiary);">30% Tech • 20% Exp • 15% Projects • 10% Edu • 10% Preferred • 10% Role • 5% Certs</span>
+        </div>
+        <div class="categories-grid" id="categoriesGrid">
+          <!-- Dynamically populated category cards -->
+        </div>
+      </section>
+
+      <!-- STEP 3: Required Skills Analysis Matrix -->
+      <section class="matrix-card" id="step3Skills">
+        <div class="matrix-header">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 700;">3. Required Skills & Requirement Analysis</h3>
+            <p style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+              Individual classification: MATCH (verified evidence), PARTIAL MATCH (related evidence), NOT FOUND (no evidence).
+            </p>
+          </div>
+          <div class="filter-pills">
+            <button class="filter-btn active" data-filter="all">All (<span id="countAll">0</span>)</button>
+            <button class="filter-btn" data-filter="MATCH">Match (<span id="countMatch">0</span>)</button>
+            <button class="filter-btn" data-filter="PARTIAL MATCH">Partial (<span id="countPartial">0</span>)</button>
+            <button class="filter-btn" data-filter="NOT FOUND">Not Found (<span id="countNotFound">0</span>)</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="custom-table" id="skillsTable">
+            <thead>
+              <tr>
+                <th style="width: 25%;">Job Requirement</th>
+                <th style="width: 55%;">Resume Evidence Found</th>
+                <th style="width: 20%; text-align: center;">Match Status</th>
+              </tr>
+            </thead>
+            <tbody id="skillsTableBody">
+              <!-- Populated via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- STEP 4 & 5: Strengths & Skill Gaps Side-by-Side -->
+      <div class="split-grid">
+        <!-- 4. Key Strengths -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span style="color: var(--match-emerald);">⭐</span> 4. Key Strengths
+            </h3>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Demonstrated in Resume</span>
+          </div>
+          <div class="item-list" id="strengthsList">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+
+        <!-- 5. Skill Gaps -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span style="color: var(--notfound-rose);">⚠️</span> 5. Skill Gaps & Deficiencies
+            </h3>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Missing or Partial</span>
+          </div>
+          <div class="item-list" id="gapsList">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+      </div>
+
+      <!-- STEP 6 & 7: Projects & Experience Analysis -->
+      <div class="split-grid">
+        <!-- 6. Relevant Projects -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span style="color: var(--cyan);">🚀</span> 6. Relevant Projects
+            </h3>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Practical Application Evidence</span>
+          </div>
+          <div id="projectsList">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+
+        <!-- 7. Experience Relevance -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <span style="color: var(--violet);">💼</span> 7. Experience Analysis
+            </h3>
+            <span style="font-size: 11px; color: var(--text-tertiary);">Tenure & Responsibilities</span>
+          </div>
+          <div id="experienceList">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+      </div>
+
+      <!-- STEP 8: ATS Analysis -->
+      <section class="card" style="margin-bottom: 28px;">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span style="color: var(--primary-light);">🛡️</span> 8. ATS Quality & Formatting Audit
+          </h3>
+          <span style="font-size: 11px; color: var(--text-tertiary);">Applicant Tracking System Compatibility</span>
+        </div>
+        <div class="ats-grid">
+          <div class="ats-box">
+            <div class="ats-box-title" style="color: var(--match-emerald);">
+              <span>✅</span> ATS-Friendly Elements
+            </div>
+            <ul class="ats-list" id="atsFriendlyList"></ul>
+          </div>
+          <div class="ats-box">
+            <div class="ats-box-title" style="color: var(--notfound-rose);">
+              <span>⚠️</span> Potential ATS Problems
+            </div>
+            <ul class="ats-list" id="atsProblemsList"></ul>
+          </div>
+          <div class="ats-box">
+            <div class="ats-box-title" style="color: var(--partial-amber);">
+              <span>🔍</span> Missing Target Keywords
+            </div>
+            <ul class="ats-list" id="atsKeywordsList"></ul>
+          </div>
+          <div class="ats-box">
+            <div class="ats-box-title" style="color: var(--cyan);">
+              <span>📐</span> Formatting & Readability
+            </div>
+            <ul class="ats-list" id="atsFormattingList"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- STEP 9: Resume Improvement Suggestions -->
+      <section class="card" style="margin-bottom: 28px;">
+        <div class="card-header">
+          <h3 class="card-title">
+            <span style="color: var(--cyan);">💡</span> 9. Resume Improvement Suggestions
+          </h3>
+          <span style="font-size: 11px; color: var(--text-tertiary);">Actionable suggestions for THIS job</span>
+        </div>
+        <div class="item-list" id="suggestionsList"></div>
+      </section>
+
+      <!-- STEP 10: Final Explanation -->
+      <section class="final-explanation-card">
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 10px; color: #fff;">
+          10. Final Evidence-Based Explanation
+        </h3>
+        <p class="final-explanation-text" id="finalExplanationDisplay">
+          Analysis explanation will appear here.
+        </p>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>AI Resume Classifier adheres to objective, explainable evaluation standards. It does not make hiring decisions or utilize protected personal characteristics.</p>
+    </footer>
+
+  </div>
+
+  <!-- Settings Modal (API Key & Engine Selection) -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">Classifier Engine Settings</h3>
+        <button class="modal-close" id="btnCloseModal">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="engineModeSelect">Engine Mode</label>
+        <select id="engineModeSelect" class="select-field">
+          <option value="offline">Built-in Rule-Based AI Engine (Offline, Instant)</option>
+          <option value="gemini">Google Gemini 1.5 / 2.0 API (Deep LLM Reasoning)</option>
+        </select>
+        <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+          The built-in engine runs completely offline in your browser. Select Gemini if you wish to run full generative analysis using your API key.
+        </p>
+      </div>
+
+      <div class="form-group" id="apiKeyGroup" style="display: none;">
+        <label class="form-label" for="geminiApiKeyInput">Gemini API Key</label>
+        <input type="password" id="geminiApiKeyInput" class="input-field" placeholder="AIzaSy...">
+        <p style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+          Your key remains stored only in local storage in your browser session.
+        </p>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
+        <button id="btnSaveSettings" class="btn-primary">Save Preferences</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div class="toast" id="toast">Report copied to clipboard!</div>
+
+  <!-- Scripts -->
+  <script src="samples.js"></script>
+  <script src="classifier.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
